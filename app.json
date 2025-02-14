@@ -12,10 +12,20 @@
       "supportsTablet": true
     },
     "android": {
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AlzaSyzhVlvW-Gj-rl2dMnyCrw6QJbfXdP0TgHi"
+        }
+      },
+      "package": "com.spaideki.tabletservice"
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +46,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "f03bde25-5933-4097-a800-a66038aa3b59"
+      }
     }
   }
 }
