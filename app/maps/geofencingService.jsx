@@ -1,87 +1,78 @@
-import * as Location from "expo-location";
-import * as TaskManager from "expo-task-manager";
+import BackgroundGeolocation from "react-native-background-geolocation";
 import { Alert } from "react-native";
 
-const GEOFENCING_TASK = "GEOFENCING_TASK";
-
-// Define multiple geofence locations
 export const GEOFENCE_LOCATIONS = [
   {
     identifier: "Location 1",
-    latitude: 14.5995, // Example: Manila
+    latitude: 14.5995, // Manila
     longitude: 120.9842,
-    radius: 200, // Radius in meters
-    notifyOnEnter: true,
-    notifyOnExit: true,
+    radius: 200,
   },
   {
     identifier: "Location 2",
-    latitude: 14.681626270672984, // Example: Quezon City
-    longitude: 121.06321455325424,
-    radius: 50,
-    notifyOnEnter: true,
-    notifyOnExit: true,
+    latitude: 14.6816, // Quezon City
+    longitude: 121.0632,
+    radius: 40,
   },
 ];
 
-// Background task for geofencing
-TaskManager.defineTask(GEOFENCING_TASK, async ({ data, error }) => {
-  if (error) {
-    console.error("Geofencing error:", error);
-    return;
-  }
-
-  if (data) {
-    const { eventType, region } = data;
-    
-    // Fetch the current user location for debugging
-    let location = await Location.getCurrentPositionAsync({});
-    console.log("Current Device Location:", location.coords.latitude, location.coords.longitude);
-
-    if (eventType === Location.GeofencingEventType.Enter) {
-      console.log(`✅ ENTERED geofence: ${region.identifier}`);
-      Alert.alert("Geofence Alert", `Entered: ${region.identifier}`);
-    } else if (eventType === Location.GeofencingEventType.Exit) {
-      console.log(`❌ EXITED geofence: ${region.identifier}`);
-      Alert.alert("Geofence Alert", `Exited: ${region.identifier}`);
-    }
-  }
-});
-
-// Function to start geofencing
 export const startGeofencing = async () => {
   try {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+    console.log("🔍 Initializing Background Geofencing...");
 
-    if (status !== "granted" || backgroundStatus !== "granted") {
-      Alert.alert("Permission Denied", "Enable location permissions for geofencing.");
-      return;
-    }
+    // Configure Background Geolocation
+    BackgroundGeolocation.ready({
+      desiredAccuracy: BackgroundGeolocation.HIGH_ACCURACY,
+      distanceFilter: 50,
+      stopTimeout: 5,
+      debug: true,
+      stopOnTerminate: false,
+      startOnBoot: true,
+      locationAuthorizationRequest: "Always",
+      backgroundPermissionRationale: {
+        title: "Allow Background Location",
+        message: "This app needs background location access to detect geofences.",
+        positiveAction: "Allow",
+        negativeAction: "Deny",
+      },
+      geofenceModeHighAccuracy: true,
+    }).then((state) => {
+      console.log("✅ Background geofencing configured successfully.", state);
+      
+      // Clear existing geofences to prevent duplicates
+      BackgroundGeolocation.removeGeofences(() => {
+        console.log("♻️ Existing geofences cleared.");
 
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
-    if (!isRegistered) {
-      await Location.startGeofencingAsync(GEOFENCING_TASK, GEOFENCE_LOCATIONS);
-      console.log("✅ Geofencing started successfully.");
-    } else {
-      console.log("ℹ️ Geofencing is already running.");
-    }
+        // Add geofences
+        BackgroundGeolocation.addGeofences(GEOFENCE_LOCATIONS.map((geo) => ({
+          identifier: geo.identifier,
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+          radius: geo.radius,
+          notifyOnEntry: true,
+          notifyOnExit: true,
+        })));
+
+        // Listen for geofence events
+        BackgroundGeolocation.onGeofence((event) => {
+          const action = event.action === "ENTER" ? "Entered" : "Exited";
+          console.log(`📍 ${action} geofence: ${event.identifier}`);
+          Alert.alert("Geofence Alert", `${action} ${event.identifier}`);
+        });
+
+        // Start tracking
+        BackgroundGeolocation.startGeofences();
+      });
+    });
   } catch (error) {
-    console.error("Error starting geofencing:", error);
+    console.error("❌ Error starting geofencing:", error);
   }
 };
 
-// Function to stop geofencing
 export const stopGeofencing = async () => {
-  try {
-    const isRegistered = await TaskManager.isTaskRegisteredAsync(GEOFENCING_TASK);
-    if (isRegistered) {
-      await Location.stopGeofencingAsync(GEOFENCING_TASK);
-      console.log("🛑 Geofencing stopped.");
-    }
-  } catch (error) {
-    console.error("Error stopping geofencing:", error);
-  }
+  console.log("🛑 Stopping Geofencing...");
+  await BackgroundGeolocation.stop();
+  console.log("✅ Geofencing stopped.");
 };
 
 export default { startGeofencing, stopGeofencing, GEOFENCE_LOCATIONS };
